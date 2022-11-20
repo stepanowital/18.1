@@ -2,8 +2,10 @@ from flask import Flask
 from flask_restx import Api
 
 from app.config import Config
+from app.dao.model.author import Author
+from app.dao.model.book import Book
 from app.database import db
-from app.models import Book, Author
+
 from app.views.authors import author_ns
 from app.views.books import book_ns
 

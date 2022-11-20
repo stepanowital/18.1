@@ -1,8 +1,8 @@
 from flask import request
 from flask_restx import Resource, Namespace
 
-from app.database import db
-from app.models import BookSchema, Book
+from app.container import book_service
+from app.dao.model.book import BookSchema
 
 book_ns = Namespace('books')
 
@@ -13,15 +13,12 @@ books_schema = BookSchema(many=True)
 @book_ns.route('/')
 class BooksView(Resource):
 	def get(self):
-		all_books = db.session.query(Book).all()
+		all_books = book_service.get_all()
 		return books_schema.dump(all_books), 200
 
 	def post(self):
 		req_json = request.json
-		new_book = Book(**req_json)
-
-		with db.session.begin():
-			db.session.add(new_book)
+		book_service.create(req_json)
 
 		return "", 201
 
@@ -30,39 +27,27 @@ class BooksView(Resource):
 class BookView(Resource):
 	def get(self, uid: int):
 		try:
-			book = db.session.query(Book).filter(Book.id == uid).one()
+			book = book_service.get_one(uid)
 			return book_schema.dump(book), 200
 		except Exception as e:
 			return str(e), 404
 
 	def put(self, uid: int):
-		book = db.session.query(Book).get(uid)
 		req_json = request.json
+		req_json["id"] = uid
 
-		book.name = req_json.get("name")
-		book.year = req_json.get("year")
-
-		db.session.add(book)
-		db.session.commit()
+		book_service.update(req_json)
 
 		return "", 204
 
 	def patch(self, uid: int):
-		book = db.session.query(Book).get(uid)
 		req_json = request.json
+		req_json["id"] = uid
 
-		if "name" in req_json:
-			book.name = req_json.get("name")
-		if "year" in req_json:
-			book.year = req_json.get("year")
-
-		db.session.add(book)
-		db.session.commit()
+		book_service.update_partial(req_json)
 
 		return "", 204
 
 	def delete(self, uid: int):
-		book = db.session.query(Book).get(uid)
-		db.session.delete(book)
-		db.session.commit()
+		book_service.delete(uid)
 		return "", 204

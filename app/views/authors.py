@@ -1,8 +1,8 @@
 from flask import request
 from flask_restx import Resource, Namespace
 
-from app.database import db
-from app.models import AuthorSchema, Author
+from app.container import author_service
+from app.dao.model.author import AuthorSchema
 
 author_ns = Namespace('authors')
 
@@ -13,15 +13,12 @@ authors_schema = AuthorSchema(many=True)
 @author_ns.route('/')
 class AuthorsView(Resource):
 	def get(self):
-		all_books = db.session.query(Author).all()
-		return authors_schema.dump(all_books), 200
+		all_authors = author_service.get_all()
+		return authors_schema.dump(all_authors), 200
 
 	def post(self):
 		req_json = request.json
-		new_book = Author(**req_json)
-
-		with db.session.begin():
-			db.session.add(new_book)
+		author_service.create(req_json)
 
 		return "", 201
 
@@ -30,39 +27,28 @@ class AuthorsView(Resource):
 class AuthorView(Resource):
 	def get(self, uid: int):
 		try:
-			book = db.session.query(Author).filter(Author.id == uid).one()
-			return author_schema.dump(book), 200
+			author = author_service.get_one(uid)
+			return author_schema.dump(author), 200
 		except Exception as e:
 			return str(e), 404
 
 	def put(self, uid: int):
-		book = db.session.query(Author).get(uid)
 		req_json = request.json
+		req_json["id"] = uid
 
-		book.first_name = req_json.get("first_name")
-		book.last_name = req_json.get("last_name")
-
-		db.session.add(book)
-		db.session.commit()
+		author_service.update(req_json)
 
 		return "", 204
 
 	def patch(self, uid: int):
-		book = db.session.query(Author).get(uid)
 		req_json = request.json
+		req_json["id"] = uid
 
-		if "first_name" in req_json:
-			book.first_name = req_json.get("first_name")
-		if "last_name" in req_json:
-			book.last_name = req_json.get("last_name")
-
-		db.session.add(book)
-		db.session.commit()
+		author_service.update_partial(req_json)
 
 		return "", 204
 
 	def delete(self, uid: int):
-		book = db.session.query(Author).get(uid)
-		db.session.delete(book)
-		db.session.commit()
+		author_service.delete(uid)
+
 		return "", 204
